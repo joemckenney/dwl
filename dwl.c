@@ -3814,7 +3814,7 @@ bstack(Monitor *m)
 			continue;
 		if (i < m->nmaster) {
 			r = MIN(n, m->nmaster) - i;
-			w = (m->w.width - mx - gappx*e - gappx*e * (r - 1)) / r;
+			w = (m->w.width - mx - 2*gappx*e - gappx*e * (r - 1)) / r;
 			resize(c, (struct wlr_box) { .x = m->w.x + mx + gappx*e, .y = m->w.y + gappx*e,
 				.width = w, .height = mh - 2*gappx*e }, 0);
 			mx += c->geom.width + gappx*e;
@@ -3857,7 +3857,7 @@ bstackhoriz(Monitor *m) {
 			continue;
 		if (i < m->nmaster) {
 			r = MIN(n, m->nmaster) - i;
-			w = (m->w.width - mx - gappx*e - gappx*e * (r - 1)) / r;
+			w = (m->w.width - mx - 2*gappx*e - gappx*e * (r - 1)) / r;
 			resize(c, (struct wlr_box) { .x = m->w.x + mx + gappx*e, .y = m->w.y + gappx*e,
 				.width = w, .height = mh - 2*gappx*e }, 0);
 			mx += c->geom.width + gappx*e;
