@@ -3785,19 +3785,21 @@ usage:
 static void
 bstack(Monitor *m)
 {
-	int w, h, mh, mx, tx, ty, tw;
+	unsigned int w, r, e = m->gaps, mh, mx, tx, ty, tw;
 	int i, n = 0;
 	Client *c;
 
 	wl_list_for_each(c, &clients, link)
-		if (VISIBLEON(c, m) && !c->isfloating)
+		if (VISIBLEON(c, m) && !c->isfloating && !c->isfullscreen)
 			n++;
 	if (n == 0)
 		return;
+	if (smartgaps == n)
+		e = 0;
 
 	if (n > m->nmaster) {
-		mh = (int)round(m->nmaster ? m->mfact * m->w.height : 0);
-		tw = m->w.width / (n - m->nmaster);
+		mh = m->nmaster ? (int)roundf((m->w.height + gappx*e) * m->mfact) : 0;
+		tw = (m->w.width - gappx*e) / (n - m->nmaster);
 		ty = m->w.y + mh;
 	} else {
 		mh = m->w.height;
@@ -3806,19 +3808,21 @@ bstack(Monitor *m)
 	}
 
 	i = mx = 0;
-	tx = m-> w.x;
+	tx = m->w.x + gappx*e;
 	wl_list_for_each(c, &clients, link) {
-		if (!VISIBLEON(c, m) || c->isfloating)
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		if (i < m->nmaster) {
-			w = (m->w.width - mx) / (MIN(n, m->nmaster) - i);
-			resize(c, (struct wlr_box) { .x = m->w.x + mx, .y = m->w.y, .width = w, .height = mh }, 0);
-			mx += c->geom.width;
+			r = MIN(n, m->nmaster) - i;
+			w = (m->w.width - mx - gappx*e - gappx*e * (r - 1)) / r;
+			resize(c, (struct wlr_box) { .x = m->w.x + mx + gappx*e, .y = m->w.y + gappx*e,
+				.width = w, .height = mh - 2*gappx*e }, 0);
+			mx += c->geom.width + gappx*e;
 		} else {
-			h = m->w.height - mh;
-			resize(c, (struct wlr_box) { .x = tx, .y = ty, .width = tw, .height = h }, 0);
-			if (tw != m->w.width)
-				tx += c->geom.width;
+			r = n - i;
+			resize(c, (struct wlr_box) { .x = tx, .y = ty,
+				.width = tw - gappx*e, .height = m->w.height - mh - gappx*e }, 0);
+			tx += c->geom.width + gappx*e;
 		}
 		i++;
 	}
@@ -3826,19 +3830,21 @@ bstack(Monitor *m)
 
 static void
 bstackhoriz(Monitor *m) {
-	int w, mh, mx, tx, ty, th;
+	unsigned int w, r, e = m->gaps, mh, mx, ty, th;
 	int i, n = 0;
 	Client *c;
 
 	wl_list_for_each(c, &clients, link)
-		if (VISIBLEON(c, m) && !c->isfloating)
-			n ++;
+		if (VISIBLEON(c, m) && !c->isfloating && !c->isfullscreen)
+			n++;
 	if (n == 0)
 		return;
+	if (smartgaps == n)
+		e = 0;
 
 	if (n > m->nmaster) {
-		mh = (int)round(m->nmaster ? m->mfact * m->w.height : 0);
-		th = (m->w.height - mh) / (n - m->nmaster);
+		mh = m->nmaster ? (int)roundf((m->w.height + gappx*e) * m->mfact) : 0;
+		th = (m->w.height - mh - gappx*e - gappx*e * (n - m->nmaster - 1)) / (n - m->nmaster);
 		ty = m->w.y + mh;
 	} else {
 		th = mh = m->w.height;
@@ -3846,18 +3852,20 @@ bstackhoriz(Monitor *m) {
 	}
 
 	i = mx = 0;
-	tx = m-> w.x;
 	wl_list_for_each(c, &clients, link) {
-		if (!VISIBLEON(c,m) || c->isfloating)
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		if (i < m->nmaster) {
-			w = (m->w.width - mx) / (MIN(n, m->nmaster) - i);
-			resize(c, (struct wlr_box) { .x = m->w.x + mx, .y = m->w.y, .width = w, .height = mh }, 0);
-			mx += c->geom.width;
+			r = MIN(n, m->nmaster) - i;
+			w = (m->w.width - mx - gappx*e - gappx*e * (r - 1)) / r;
+			resize(c, (struct wlr_box) { .x = m->w.x + mx + gappx*e, .y = m->w.y + gappx*e,
+				.width = w, .height = mh - 2*gappx*e }, 0);
+			mx += c->geom.width + gappx*e;
 		} else {
-			resize(c, (struct wlr_box) { .x = tx, .y = ty, .width = m->w.width, .height = th }, 0);
-			if (th != m->w.height)
-				ty += c->geom.height;
+			r = n - i;
+			resize(c, (struct wlr_box) { .x = m->w.x + gappx*e, .y = ty,
+				.width = m->w.width - 2*gappx*e, .height = th }, 0);
+			ty += c->geom.height + gappx*e;
 		}
 		i++;
 	}
