@@ -84,7 +84,6 @@
 #define VISIBLEON(C, M)         ((M) && (C)->mon == (M) && ((C)->tags & (M)->tagset[(M)->seltags]))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define END(A)                  ((A) + LENGTH(A))
-#define TAGMASK                 ((1u << LENGTH(tags)) - 1)
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 #define LISTEN_STATIC(E, H)     do { struct wl_listener *_l = ecalloc(1, sizeof(*_l)); _l->notify = (H); wl_signal_add((E), _l); } while (0)
 #define TEXTW(mon, text)        (drwl_font_getwidth(mon->drw, text) + mon->lrpad)
@@ -230,6 +229,9 @@ struct Monitor {
 	struct wl_list layers[4]; /* LayerSurface.link */
 	const Layout *lt[2];
 	int gaps;
+	const char **tags;
+	int ntags;
+	uint32_t tagmask;
 	unsigned int seltags;
 	unsigned int sellt;
 	uint32_t tagset[2];
@@ -244,6 +246,7 @@ struct Monitor {
 };
 
 typedef struct {
+	const char *description;
 	const char *name;
 	float mfact;
 	int nmaster;
@@ -251,6 +254,8 @@ typedef struct {
 	const Layout *lt;
 	enum wl_output_transform rr;
 	int x, y;
+	const char **tags;
+	int ntags;
 } MonitorRule;
 
 typedef struct {
@@ -805,9 +810,9 @@ buttonpress(struct wl_listener *listener, void *data)
 			(buffer = wlr_scene_buffer_from_node(node)) && buffer == selmon->scene_buffer) {
 			cx = (cursor->x - selmon->m.x) * selmon->wlr_output->scale;
 			do
-				x += TEXTW(selmon, tags[i]);
-			while (cx >= x && ++i < LENGTH(tags));
-			if (i < LENGTH(tags)) {
+				x += TEXTW(selmon, selmon->tags[i]);
+			while (cx >= x && ++i < (unsigned int)selmon->ntags);
+			if (i < (unsigned int)selmon->ntags) {
 				click = ClkTagBar;
 				arg.ui = 1 << i;
 			} else if (cx < x + TEXTW(selmon, selmon->ltsymbol))
@@ -1257,7 +1262,10 @@ createmon(struct wl_listener *listener, void *data)
 
 	m->tagset[0] = m->tagset[1] = 1;
 	for (r = monrules; r < END(monrules); r++) {
-		if (!r->name || strstr(wlr_output->name, r->name)) {
+		if ((!r->description && !r->name)
+				|| (r->description && wlr_output->description
+					&& strstr(wlr_output->description, r->description))
+				|| (r->name && strstr(wlr_output->name, r->name))) {
 			m->m.x = r->x;
 			m->m.y = r->y;
 			m->mfact = r->mfact;
@@ -1267,6 +1275,9 @@ createmon(struct wl_listener *listener, void *data)
 			strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof(m->ltsymbol));
 			wlr_output_state_set_scale(&state, r->scale);
 			wlr_output_state_set_transform(&state, r->rr);
+			m->tags = r->tags;
+			m->ntags = r->ntags;
+			m->tagmask = (1u << r->ntags) - 1;
 			break;
 		}
 	}
@@ -1614,7 +1625,13 @@ dwl_ipc_manager_bind(struct wl_client *client, void *data, uint32_t version, uin
 	}
 	wl_resource_set_implementation(manager_resource, &dwl_manager_implementation, NULL, dwl_ipc_manager_destroy);
 
-	zdwl_ipc_manager_v2_send_tags(manager_resource, LENGTH(tags));
+	{
+		int max_tags = 0;
+		for (size_t i = 0; i < LENGTH(monrules); i++)
+			if (monrules[i].ntags > max_tags)
+				max_tags = monrules[i].ntags;
+		zdwl_ipc_manager_v2_send_tags(manager_resource, max_tags);
+	}
 
 	for (unsigned int i = 0; i < LENGTH(layouts); i++)
 		zdwl_ipc_manager_v2_send_layout(manager_resource, layouts[i].symbol);
@@ -1675,7 +1692,7 @@ dwl_ipc_output_printstatus_to(DwlIpcOutput *ipc_output)
 	focused = focustop(monitor);
 	zdwl_ipc_output_v2_send_active(ipc_output->resource, monitor == selmon);
 
-	for (tag = 0 ; tag < (int)LENGTH(tags); tag++) {
+	for (tag = 0 ; tag < monitor->ntags; tag++) {
 		numclients = state = focused_client = 0;
 		tagmask = 1 << tag;
 		if ((tagmask & monitor->tagset[monitor->seltags]) != 0)
@@ -1765,12 +1782,14 @@ dwl_ipc_output_set_tags(struct wl_client *client, struct wl_resource *resource, 
 {
 	DwlIpcOutput *ipc_output;
 	Monitor *monitor;
-	unsigned int newtags = tagmask & TAGMASK;
+	unsigned int newtags;
 
 	ipc_output = wl_resource_get_user_data(resource);
 	if (!ipc_output)
 		return;
 	monitor = ipc_output->mon;
+
+	newtags = tagmask & monitor->tagmask;
 
 	if (!newtags || newtags == monitor->tagset[monitor->seltags])
 		return;
@@ -1821,10 +1840,10 @@ drawbar(Monitor *m)
 	}
 	x = 0;
 	c = focustop(m);
-	for (i = 0; i < LENGTH(tags); i++) {
-		w = TEXTW(m, tags[i]);
+	for (i = 0; i < (uint32_t)m->ntags; i++) {
+		w = TEXTW(m, m->tags[i]);
 		drwl_setscheme(m->drw, colors[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
-		drwl_text(m->drw, x, 0, w, m->b.height, m->lrpad / 2, tags[i], urg & 1 << i);
+		drwl_text(m->drw, x, 0, w, m->b.height, m->lrpad / 2, m->tags[i], urg & 1 << i);
 		if (occ & 1 << i)
 			drwl_rect(m->drw, x + boxs, boxs, boxw, boxw,
 				m == selmon && c && c->tags & 1 << i,
@@ -3147,10 +3166,10 @@ void
 tag(const Arg *arg)
 {
 	Client *sel = focustop(selmon);
-	if (!sel || (arg->ui & TAGMASK) == 0)
+	if (!sel || (arg->ui & selmon->tagmask) == 0)
 		return;
 
-	sel->tags = arg->ui & TAGMASK;
+	sel->tags = arg->ui & selmon->tagmask;
 	focusclient(focustop(selmon), 1);
 	arrange(selmon);
 	drawbars();
@@ -3247,7 +3266,7 @@ toggletag(const Arg *arg)
 {
 	uint32_t newtags;
 	Client *sel = focustop(selmon);
-	if (!sel || !(newtags = sel->tags ^ (arg->ui & TAGMASK)))
+	if (!sel || !(newtags = sel->tags ^ (arg->ui & selmon->tagmask)))
 		return;
 
 	sel->tags = newtags;
@@ -3260,7 +3279,7 @@ void
 toggleview(const Arg *arg)
 {
 	uint32_t newtagset;
-	if (!(newtagset = selmon ? selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK) : 0))
+	if (!(newtagset = selmon ? selmon->tagset[selmon->seltags] ^ (arg->ui & selmon->tagmask) : 0))
 		return;
 
 	selmon->tagset[selmon->seltags] = newtagset;
@@ -3491,11 +3510,11 @@ urgent(struct wl_listener *listener, void *data)
 void
 view(const Arg *arg)
 {
-	if (!selmon || (arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
+	if (!selmon || (arg->ui & selmon->tagmask) == selmon->tagset[selmon->seltags])
 		return;
 	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
-		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+	if (arg->ui & selmon->tagmask)
+		selmon->tagset[selmon->seltags] = arg->ui & selmon->tagmask;
 	focusclient(focustop(selmon), 1);
 	arrange(selmon);
 	drawbars();
@@ -3505,12 +3524,12 @@ void
 viewcycle(const Arg *arg)
 {
 	uint32_t curtags, newtag;
-	int i, ntags = LENGTH(tags);
+	int i, ntags = selmon->ntags;
 
 	if (!selmon)
 		return;
 
-	curtags = selmon->tagset[selmon->seltags] & TAGMASK;
+	curtags = selmon->tagset[selmon->seltags] & selmon->tagmask;
 
 	/* Find current single-tag index; if viewing multiple tags, do nothing */
 	for (i = 0; i < ntags && curtags != (1u << i); i++);
