@@ -54,8 +54,13 @@ static const Layout layouts[] = {
  * https://gitlab.freedesktop.org/xorg/xserver/-/issues/899 */
 static const MonitorRule monrules[] = {
 	/* description  name   mfact  nmaster scale layout       rotate/reflect                x    y   tags              ntags */
+	/* oakland */
 	{ "272VW83",    NULL,  0.55f, 1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1, tags_vertical,    LENGTH(tags_vertical) },
 	{ "40MMYG3",    NULL,  0.55f, 1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1, tags_horizontal,  LENGTH(tags_horizontal) },
+	/* mendocino */
+	{ "FF3QW83",    NULL,  0.55f, 1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1, tags_vertical,    LENGTH(tags_vertical) },
+	{ "G87BZG3",    NULL,  0.55f, 1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1, tags_horizontal,  LENGTH(tags_horizontal) },
+	/* fallback */
 	{ NULL,         NULL,  0.55f, 1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1, tags_default,     LENGTH(tags_default) },
 };
 
