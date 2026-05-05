@@ -26,7 +26,7 @@ static uint32_t colors[][3]                = {
 /* tagging — per-monitor tag arrays */
 static const char *tags_default[]    = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 static const char *tags_vertical[]   = { "dev", "etc" };
-static const char *tags_horizontal[] = { "dev", "www", "notes", "sys", "rook", "ear" };
+static const char *tags_horizontal[] = { "dev", "www", "txt", "sys", "ruk", "ear" };
 
 /* logging */
 static int log_level = WLR_ERROR;
@@ -40,7 +40,7 @@ static const Rule rules[] = {
 	{ "chrome-www",    NULL,  1 << 1,      0,           1 },  /* www */
 	{ "notes-term",    NULL,  1 << 2,      0,           1 },  /* notes */
 	{ "sys-term",      NULL,  1 << 3,      0,           1 },  /* sys */
-	{ "rook-term",     NULL,  1 << 4,      0,           1 },  /* rook */
+	{ "ruk-term",      NULL,  1 << 4,      0,           1 },  /* ruk */
 	{ "spotify",       NULL,  1 << 5,      0,           1 },  /* ear (Spotify ignores --class, app_id is hardcoded) */
 };
 
