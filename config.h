@@ -135,6 +135,7 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 static const char *termcmd[] = { "foot", NULL };
 static const char *menucmd[] = { "fuzzel", NULL };
 static const char *whichkeycmd[] = { DWLDIR "/launch-which-key.sh", NULL };
+static const char *statuscmd_sh[] = { "/bin/sh", "-c", "dwl-statusclick", NULL };
 
 static const Key keys[] = {
 	/* Note that Shift changes certain key codes: 2 -> at, etc. */
@@ -190,7 +191,9 @@ static const Button buttons[] = {
 	{ ClkLtSymbol, 0,      BTN_LEFT,   setlayout,      {.v = &layouts[0]} },
 	{ ClkLtSymbol, 0,      BTN_RIGHT,  setlayout,      {.v = &layouts[2]} },
 	{ ClkTitle,    0,      BTN_MIDDLE, zoom,           {0} },
-	{ ClkStatus,   0,      BTN_MIDDLE, spawn,          {.v = termcmd} },
+	{ ClkStatus,   0,      BTN_LEFT,   statuscmd,      {.v = statuscmd_sh} },
+	{ ClkStatus,   0,      BTN_RIGHT,  statuscmd,      {.v = statuscmd_sh} },
+	{ ClkStatus,   0,      BTN_MIDDLE, statuscmd,      {.v = statuscmd_sh} },
 	{ ClkClient,   MODKEY, BTN_LEFT,   moveresize,     {.ui = CurMove} },
 	{ ClkClient,   MODKEY, BTN_MIDDLE, togglefloating, {0} },
 	{ ClkClient,   MODKEY, BTN_RIGHT,  moveresize,     {.ui = CurResize} },

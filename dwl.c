@@ -87,6 +87,8 @@
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 #define LISTEN_STATIC(E, H)     do { struct wl_listener *_l = ecalloc(1, sizeof(*_l)); _l->notify = (H); wl_signal_add((E), _l); } while (0)
 #define TEXTW(mon, text)        (drwl_font_getwidth(mon->drw, text) + mon->lrpad)
+#define STATUS_DELIM            "\x1f"
+#define STATUS_DELIM_LEN        (sizeof(STATUS_DELIM) - 1)
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeUrg }; /* color schemes */
@@ -390,6 +392,9 @@ static void setpsel(struct wl_listener *listener, void *data);
 static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
 static void spawn(const Arg *arg);
+static void statuscmd(const Arg *arg);
+static int getstatusblock(double cx, double status_x);
+static void updatestext_draw(void);
 static void startdrag(struct wl_listener *listener, void *data);
 static int statusin(int fd, unsigned int mask, void *data);
 static void tag(const Arg *arg);
@@ -474,6 +479,9 @@ static struct wl_list mons;
 static Monitor *selmon;
 
 static char stext[256];
+static char stext_draw[256]; /* stext with delimiters stripped for rendering */
+static int statusblock_clicked;
+static unsigned int statusbutton_clicked;
 static struct wl_event_source *status_event_source;
 
 static const struct wlr_buffer_impl buffer_impl = {
@@ -694,8 +702,6 @@ axisnotify(struct wl_listener *listener, void *data)
 	 * for example when you move the scroll wheel. */
 	struct wlr_pointer_axis_event *event = data;
 	wlr_idle_notifier_v1_notify_activity(idle_notifier, seat);
-	/* TODO: allow usage of scroll wheel for mousebindings, it can be implemented
-	 * by checking the event's orientation and the delta of the event */
 	/* Notify the client with pointer focus of the axis event. */
 	wlr_seat_pointer_notify_axis(seat,
 			event->time_msec, event->orientation, event->delta,
@@ -817,8 +823,10 @@ buttonpress(struct wl_listener *listener, void *data)
 				arg.ui = 1 << i;
 			} else if (cx < x + TEXTW(selmon, selmon->ltsymbol))
 				click = ClkLtSymbol;
-			else if (cx > selmon->b.width - (TEXTW(selmon, stext) - selmon->lrpad + 2)) {
+			else if (cx > selmon->b.width - (TEXTW(selmon, stext_draw) - selmon->lrpad + 2)) {
 				click = ClkStatus;
+				statusblock_clicked = getstatusblock(cx,
+					selmon->b.width - (TEXTW(selmon, stext_draw) - selmon->lrpad + 2));
 			} else
 				click = ClkTitle;
 		}
@@ -830,6 +838,8 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = keyboard ? wlr_keyboard_get_modifiers(keyboard) : 0;
+		if (click == ClkStatus)
+			statusbutton_clicked = event->button;
 		for (b = buttons; b < END(buttons); b++) {
 			if (CLEANMASK(mods) == CLEANMASK(b->mod) && event->button == b->button && click == b->click && b->func) {
 				b->func(click == ClkTagBar && b->arg.i == 0 ? &arg : &b->arg);
@@ -1827,8 +1837,8 @@ drawbar(Monitor *m)
 	/* draw status first so it can be overdrawn by tags later */
 	if (m == selmon) { /* status is only drawn on selected monitor */
 		drwl_setscheme(m->drw, colors[SchemeNorm]);
-		tw = TEXTW(m, stext) - m->lrpad + 2; /* 2px right padding */
-		drwl_text(m->drw, m->b.width - tw, 0, tw, m->b.height, 0, stext, 0);
+		tw = TEXTW(m, stext_draw) - m->lrpad + 2; /* 2px right padding */
+		drwl_text(m->drw, m->b.width - tw, 0, tw, m->b.height, 0, stext_draw, 0);
 	}
 
 	wl_list_for_each(c, &clients, link) {
@@ -3128,6 +3138,68 @@ spawn(const Arg *arg)
 }
 
 void
+statuscmd(const Arg *arg)
+{
+	char blockstr[4], buttonstr[4];
+	int btn;
+
+	snprintf(blockstr, sizeof(blockstr), "%d", statusblock_clicked);
+	setenv("BLOCK", blockstr, 1);
+
+	/* Map button codes to simple 1-3 values */
+	if (statusbutton_clicked == BTN_LEFT)
+		btn = 1;
+	else if (statusbutton_clicked == BTN_RIGHT)
+		btn = 2;
+	else if (statusbutton_clicked == BTN_MIDDLE)
+		btn = 3;
+	else
+		btn = 0;
+	snprintf(buttonstr, sizeof(buttonstr), "%d", btn);
+	setenv("BUTTON", buttonstr, 1);
+
+	spawn(arg);
+}
+
+int
+getstatusblock(double cx, double status_x)
+{
+	char buf[256];
+	char *p, *seg;
+	int block = 0;
+	double bx = status_x;
+	unsigned int sw;
+
+	strncpy(buf, stext, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+
+	seg = buf;
+	while ((p = strstr(seg, STATUS_DELIM)) != NULL) {
+		/* Measure text up to the delimiter (not including it) */
+		*p = '\0';
+		sw = drwl_font_getwidth(selmon->drw, seg);
+		if (cx < bx + sw)
+			return block;
+		bx += sw;
+		block++;
+		seg = p + STATUS_DELIM_LEN;
+	}
+	return block;
+}
+
+void
+updatestext_draw(void)
+{
+	const char *r;
+	char *w;
+	for (r = stext, w = stext_draw; *r; r++) {
+		if ((unsigned char)*r != '\x1f')
+			*w++ = *r;
+	}
+	*w = '\0';
+}
+
+void
 startdrag(struct wl_listener *listener, void *data)
 {
 	struct wlr_drag *drag = data;
@@ -3157,6 +3229,7 @@ statusin(int fd, unsigned int mask, void *data)
 	status[strcspn(status, "\n")] = '\0';
 
 	strncpy(stext, status, sizeof(stext));
+	updatestext_draw();
 	drawbars();
 
 	return 0;
@@ -3433,8 +3506,10 @@ updatemons(struct wl_listener *listener, void *data)
 		}
 	}
 
-	if (stext[0] == '\0')
+	if (stext[0] == '\0') {
 		strncpy(stext, "dwl-"VERSION, sizeof(stext));
+		updatestext_draw();
+	}
 	wl_list_for_each(m, &mons, link) {
 		updatebar(m);
 		drawbar(m);
