@@ -181,6 +181,7 @@ static const Key keys[] = {
 	TAGKEYS(          XKB_KEY_4, XKB_KEY_dollar,                        3),
 	TAGKEYS(          XKB_KEY_5, XKB_KEY_percent,                       4),
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_S,            spawn,            SHCMD("screenshot-region") },
+	{ WLR_MODIFIER_LOGO|WLR_MODIFIER_SHIFT, XKB_KEY_dollar, spawn,       SHCMD("screenshot-region") },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_q,           quit,             {0} },
 
 	/* Ctrl-Alt-Backspace and Ctrl-Alt-Fx used to be handled by X server */
