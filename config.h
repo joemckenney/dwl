@@ -26,7 +26,7 @@ static uint32_t colors[][3]                = {
 /* tagging — per-monitor tag arrays */
 static const char *tags_default[]    = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 static const char *tags_vertical[]   = { "dev", "etc" };
-static const char *tags_horizontal[] = { "dev", "www", "sys", "k3s", "ear" };
+static const char *tags_horizontal[] = { "dev", "www", "notes", "sys", "rook", "ear" };
 
 /* logging */
 static int log_level = WLR_ERROR;
@@ -38,9 +38,10 @@ static const Rule rules[] = {
 	{ "dev-term",      NULL,  1 << 0,      0,           1 },  /* dev (right) */
 	{ "dev-term-left", NULL,  1 << 0,      0,           0 },  /* dev (left, vertical monitor) */
 	{ "chrome-www",    NULL,  1 << 1,      0,           1 },  /* www */
-	{ "sys-term",      NULL,  1 << 2,      0,           1 },  /* sys */
-	{ "k3s-term",      NULL,  1 << 3,      0,           1 },  /* k3s */
-	{ "spotify",       NULL,  1 << 4,      0,           1 },  /* ear (Spotify ignores --class, app_id is hardcoded) */
+	{ "notes-term",    NULL,  1 << 2,      0,           1 },  /* notes */
+	{ "sys-term",      NULL,  1 << 3,      0,           1 },  /* sys */
+	{ "rook-term",     NULL,  1 << 4,      0,           1 },  /* rook */
+	{ "spotify",       NULL,  1 << 5,      0,           1 },  /* ear (Spotify ignores --class, app_id is hardcoded) */
 };
 
 /* layout(s) */
@@ -180,6 +181,7 @@ static const Key keys[] = {
 	TAGKEYS(          XKB_KEY_3, XKB_KEY_numbersign,                    2),
 	TAGKEYS(          XKB_KEY_4, XKB_KEY_dollar,                        3),
 	TAGKEYS(          XKB_KEY_5, XKB_KEY_percent,                       4),
+	TAGKEYS(          XKB_KEY_6, XKB_KEY_asciicircum,                   5),
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_S,            spawn,            SHCMD("screenshot-region") },
 	{ WLR_MODIFIER_LOGO|WLR_MODIFIER_SHIFT, XKB_KEY_dollar, spawn,       SHCMD("screenshot-region") },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_q,           quit,             {0} },
