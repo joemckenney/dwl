@@ -26,16 +26,21 @@ static uint32_t colors[][3]                = {
 /* tagging — per-monitor tag arrays */
 static const char *tags_default[]    = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 static const char *tags_vertical[]   = { "dev", "etc" };
-static const char *tags_horizontal[] = { "dev", "www", "etc", "ear" };
+static const char *tags_horizontal[] = { "dev", "www", "sys", "k3s", "ear" };
 
 /* logging */
 static int log_level = WLR_ERROR;
 
+/* monitor=1 = right (horizontal) display under the kanshi profiles in ~/.config/kanshi/config.
+ * If autostarted apps land on the left monitor after a rebuild, flip these to monitor=0. */
 static const Rule rules[] = {
-	/* app_id             title       tags mask     isfloating   monitor */
-	{ "Gimp_EXAMPLE",     NULL,       0,            1,           -1 }, /* Start on currently visible tags floating, not tiled */
-	{ "firefox_EXAMPLE",  NULL,       1 << 8,       0,           -1 }, /* Start on ONLY tag "9" */
-    /* default/example rule: can be changed but cannot be eliminated; at least one rule must exist */
+	/* app_id          title  tags mask    isfloating   monitor */
+	{ "dev-term",      NULL,  1 << 0,      0,           1 },  /* dev (right) */
+	{ "dev-term-left", NULL,  1 << 0,      0,           0 },  /* dev (left, vertical monitor) */
+	{ "chrome-www",    NULL,  1 << 1,      0,           1 },  /* www */
+	{ "sys-term",      NULL,  1 << 2,      0,           1 },  /* sys */
+	{ "k3s-term",      NULL,  1 << 3,      0,           1 },  /* k3s */
+	{ "spotify",       NULL,  1 << 4,      0,           1 },  /* ear (Spotify ignores --class, app_id is hardcoded) */
 };
 
 /* layout(s) */
